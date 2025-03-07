@@ -1293,6 +1293,7 @@
             padding: 10px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
             transition: background 0.2s;
+            cursor: pointer;
         }
         .daily-forecast .day:hover {
             background: rgba(255, 255, 255, 0.1);
@@ -1354,6 +1355,29 @@
             transform-origin: bottom center;
             transition: transform 0.5s ease;
         }
+        .weather-map {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .weather-map img {
+            width: 100%;
+            border-radius: 10px;
+        }
+        .map-toggle {
+            margin-top: 10px;
+        }
+        .map-toggle button {
+            padding: 5px 15px;
+            margin: 0 5px;
+            border-radius: 10px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -1383,6 +1407,13 @@
         </div>
         <div class="hourly-forecast" id="hourlyForecast"></div>
         <div class="daily-forecast" id="dailyForecast"></div>
+        <div class="weather-map">
+            <img id="mapImage" src="" alt="Weather Map">
+            <div class="map-toggle">
+                <button onclick="updateMap('precipitation')">Precipitation</button>
+                <button onclick="updateMap('temp')">Temperature</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1394,6 +1425,9 @@
         let weatherCondition = '';
         let windSpeed = 0;
         let windDirection = 0;
+        let currentLat = 37.3230; // Default: Cupertino
+        let currentLon = -122.0312;
+        let forecastDataGlobal = null;
 
         // Canvas setup
         function resizeCanvas() {
@@ -1416,7 +1450,7 @@
             }
             update() {
                 if (this.type === 'rain') {
-                    this.x += this.speedX * (windSpeed / 10); // Wind influence
+                    this.x += this.speedX * (windSpeed / 10);
                     this.y += this.speedY;
                     if (this.y > canvas.height) {
                         this.y = -this.size;
@@ -1494,8 +1528,6 @@
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Dynamic background based on time and condition
             const now = new Date();
             const isNight = now.getHours() < 6 || now.getHours() > 18;
             let gradient;
@@ -1519,7 +1551,6 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Lightning effect
             if ((weatherCondition.includes('thunder') || weatherCondition.includes('storm')) && Math.random() < 0.01) {
                 particles.push(new Particle(
                     Math.random() * canvas.width,
@@ -1531,7 +1562,6 @@
                 ));
             }
 
-            // Update and draw particles
             particles.forEach((p, i) => {
                 p.update();
                 p.draw();
@@ -1557,13 +1587,17 @@
                 const forecastData = await forecastResponse.json();
                 if (forecastData.cod !== '200') throw new Error(forecastData.message);
 
+                forecastDataGlobal = forecastData;
+                currentLat = currentData.coord.lat;
+                currentLon = currentData.coord.lon;
                 updateUI(currentData, forecastData);
+                updateMap('precipitation'); // Default map
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }
         }
 
-        function updateUI(currentData, forecastData) {
+        function updateUI(currentData, forecastData, selectedDayIndex = 0) {
             // Current weather
             document.getElementById('location').textContent = currentData.name;
             document.getElementById('temp').textContent = `${Math.round(currentData.main.temp)}°`;
@@ -1583,23 +1617,29 @@
             weatherCondition = currentData.weather[0].main.toLowerCase();
             initParticles(weatherCondition);
 
-            // Hourly forecast with precipitation
+            // Hourly forecast (24 hours or selected day)
             const hourlyForecast = document.getElementById('hourlyForecast');
             hourlyForecast.innerHTML = '';
-            for (let i = 0; i < 6; i++) {
-                const hourData = forecastData.list[i];
+            let hourlyData;
+            if (selectedDayIndex === 0) {
+                hourlyData = forecastData.list.slice(0, 24); // First 24 hours
+            } else {
+                const startIndex = selectedDayIndex * 8;
+                hourlyData = forecastData.list.slice(startIndex, startIndex + 8); // 24 hours approximated by 3-hour intervals
+            }
+            hourlyData.forEach((hourData, i) => {
                 const time = new Date(hourData.dt * 1000).getHours();
                 const precip = hourData.rain ? hourData.rain['3h'] || 0 : 0;
                 const hourDiv = document.createElement('div');
                 hourDiv.classList.add('hour');
                 hourDiv.innerHTML = `
-                    <span>${i === 0 ? 'Now' : `${time % 12 || 12} ${time >= 12 ? 'PM' : 'AM'}`}</span>
+                    <span>${i === 0 && selectedDayIndex === 0 ? 'Now' : `${time % 12 || 12} ${time >= 12 ? 'PM' : 'AM'}`}</span>
                     <span>${getWeatherIcon(hourData.weather[0].main)}</span>
                     <span>${Math.round(hourData.main.temp)}°</span>
                     <span style="font-size: 12px; opacity: 0.8">${Math.round(hourData.pop * 100)}%${precip > 0 ? ` (${precip} in)` : ''}</span>
                 `;
                 hourlyForecast.appendChild(hourDiv);
-            }
+            });
 
             // Daily forecast
             const dailyForecast = document.getElementById('dailyForecast');
@@ -1614,6 +1654,7 @@
                     <div class="condition-icon">${getWeatherIcon(dayData.weather[0].main)}</div>
                     <div class="temps">${Math.round(dayData.main.temp_min)}° / ${Math.round(dayData.main.temp_max)}°</div>
                 `;
+                dayDiv.addEventListener('click', () => updateUI(currentData, forecastData, index));
                 dailyForecast.appendChild(dayDiv);
             });
         }
@@ -1625,6 +1666,14 @@
             if (condition.includes('thunder') || condition.includes('storm')) return '⛈️';
             if (condition.includes('clear') || condition.includes('sun')) return '☀️';
             return '🌫️';
+        }
+
+        function updateMap(type) {
+            const zoom = 6;
+            const tileX = Math.floor((currentLon + 180) / 360 * Math.pow(2, zoom));
+            const tileY = Math.floor((1 - Math.log(Math.tan(currentLat * Math.PI / 180) + 1 / Math.cos(currentLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+            const mapUrl = `https://tile.openweathermap.org/map/${type}_new/${zoom}/${tileX}/${tileY}.png?appid=${apiKey}`;
+            document.getElementById('mapImage').src = mapUrl;
         }
 
         // Initial fetch
