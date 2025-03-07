@@ -1189,7 +1189,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iOS Weather App Clone</title>
+    <title>Enhanced iOS Weather App Clone</title>
     <style>
         body {
             margin: 0;
@@ -1198,7 +1198,7 @@
             color: white;
             overflow-x: hidden;
             position: relative;
-            background: #000; /* Default until weather loads */
+            background: #000;
         }
         canvas {
             position: absolute;
@@ -1237,6 +1237,7 @@
             font-size: 96px;
             font-weight: 200;
             line-height: 1;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
         .current-weather .condition {
             font-size: 24px;
@@ -1244,31 +1245,46 @@
             margin: 10px 0;
             text-transform: capitalize;
         }
-        .current-weather .high-low {
+        .current-weather .high-low, .details {
             font-size: 18px;
             opacity: 0.9;
+            margin: 5px 0;
+        }
+        .details span {
+            margin: 0 10px;
+        }
+        .sunrise-sunset {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 10px;
         }
         .hourly-forecast {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 15px;
             padding: 15px;
             margin-bottom: 20px;
             overflow-x: auto;
             white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         .hourly-forecast .hour {
             display: inline-block;
             text-align: center;
-            width: 60px;
+            width: 70px;
+            transition: transform 0.2s;
+        }
+        .hourly-forecast .hour:hover {
+            transform: scale(1.1);
         }
         .hourly-forecast .hour span {
             display: block;
             margin: 5px 0;
         }
         .daily-forecast {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 15px;
             padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         .daily-forecast .day {
             display: flex;
@@ -1276,6 +1292,10 @@
             align-items: center;
             padding: 10px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            transition: background 0.2s;
+        }
+        .daily-forecast .day:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
         .daily-forecast .day:last-child {
             border-bottom: none;
@@ -1308,6 +1328,7 @@
             border: none;
             width: 70%;
             font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         .search-bar button {
             padding: 10px 20px;
@@ -1315,35 +1336,52 @@
             border: none;
             background: #fff;
             cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .wind-compass {
+            margin: 20px auto;
+            width: 100px;
+            height: 100px;
+            position: relative;
+        }
+        .wind-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 40px;
+            background: white;
+            transform-origin: bottom center;
+            transition: transform 0.5s ease;
         }
     </style>
 </head>
 <body>
     <canvas id="weatherCanvas"></canvas>
     <div class="container">
-        <!-- Search Bar -->
         <div class="search-bar">
             <input type="text" id="cityInput" placeholder="Enter city name">
             <button onclick="fetchWeather()">Search</button>
         </div>
-
-        <!-- Header -->
         <div class="header">
             <div class="location" id="location">Cupertino</div>
             <div class="menu">☰</div>
         </div>
-
-        <!-- Current Weather -->
         <div class="current-weather">
             <div class="temp" id="temp">72°</div>
             <div class="condition" id="condition">Mostly Sunny</div>
             <div class="high-low" id="highLow">H:78° L:56°</div>
+            <div class="details" id="details">
+                <span id="feelsLike">Feels Like: 70°</span>
+                <span id="humidity">Humidity: 50%</span>
+                <span id="pressure">Pressure: 1013 mb</span>
+            </div>
+            <div class="wind-compass">
+                <div class="wind-arrow" id="windArrow"></div>
+            </div>
+            <div class="sunrise-sunset" id="sunTimes">Sunrise: 6:30 AM | Sunset: 6:00 PM</div>
         </div>
-
-        <!-- Hourly Forecast -->
         <div class="hourly-forecast" id="hourlyForecast"></div>
-
-        <!-- Daily Forecast -->
         <div class="daily-forecast" id="dailyForecast"></div>
     </div>
 
@@ -1354,6 +1392,8 @@
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         let particles = [];
         let weatherCondition = '';
+        let windSpeed = 0;
+        let windDirection = 0;
 
         // Canvas setup
         function resizeCanvas() {
@@ -1363,36 +1403,52 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Particle class for effects
+        // Particle class
         class Particle {
-            constructor(x, y, size, speed, type) {
+            constructor(x, y, size, speedX, speedY, type) {
                 this.x = x;
                 this.y = y;
                 this.size = size;
-                this.speed = speed;
+                this.speedX = speedX;
+                this.speedY = speedY;
                 this.type = type;
+                this.opacity = Math.random() * 0.5 + 0.5;
             }
             update() {
                 if (this.type === 'rain') {
-                    this.y += this.speed;
-                    if (this.y > canvas.height) this.y = -this.size;
+                    this.x += this.speedX * (windSpeed / 10); // Wind influence
+                    this.y += this.speedY;
+                    if (this.y > canvas.height) {
+                        this.y = -this.size;
+                        this.x = Math.random() * canvas.width;
+                    }
                 } else if (this.type === 'cloud') {
-                    this.x -= this.speed;
+                    this.x -= this.speedX;
                     if (this.x < -this.size * 2) this.x = canvas.width + this.size;
+                } else if (this.type === 'lightning') {
+                    this.opacity -= 0.05;
+                    if (this.opacity <= 0) this.opacity = 0;
                 }
             }
             draw() {
                 ctx.beginPath();
                 if (this.type === 'rain') {
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
                     ctx.lineWidth = this.size;
                     ctx.moveTo(this.x, this.y);
-                    ctx.lineTo(this.x, this.y + this.size * 5);
+                    ctx.lineTo(this.x + this.speedX * 2, this.y + this.size * 5);
                     ctx.stroke();
                 } else if (this.type === 'cloud') {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fill();
+                } else if (this.type === 'lightning') {
+                    ctx.strokeStyle = `rgba(255, 215, 0, ${this.opacity})`;
+                    ctx.lineWidth = 2;
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + Math.random() * 20 - 10, this.y + 50);
+                    ctx.lineTo(this.x + Math.random() * 30 - 15, this.y + 100);
+                    ctx.stroke();
                 }
             }
         }
@@ -1401,23 +1457,36 @@
         function initParticles(condition) {
             particles = [];
             if (condition.includes('rain')) {
-                for (let i = 0; i < 100; i++) {
+                for (let i = 0; i < 150; i++) {
                     particles.push(new Particle(
                         Math.random() * canvas.width,
                         Math.random() * canvas.height,
                         Math.random() * 2 + 1,
+                        Math.random() * 2 - 1,
                         Math.random() * 5 + 5,
                         'rain'
                     ));
                 }
             } else if (condition.includes('cloud')) {
-                for (let i = 0; i < 20; i++) {
+                for (let i = 0; i < 30; i++) {
                     particles.push(new Particle(
                         Math.random() * canvas.width,
                         Math.random() * canvas.height / 2,
-                        Math.random() * 30 + 20,
-                        Math.random() * 1 + 0.5,
+                        Math.random() * 40 + 20,
+                        Math.random() * 1.5 + 0.5,
+                        0,
                         'cloud'
+                    ));
+                }
+            } else if (condition.includes('thunder') || condition.includes('storm')) {
+                for (let i = 0; i < 100; i++) {
+                    particles.push(new Particle(
+                        Math.random() * canvas.width,
+                        Math.random() * canvas.height,
+                        Math.random() * 2 + 1,
+                        Math.random() * 2 - 1,
+                        Math.random() * 5 + 5,
+                        'rain'
                     ));
                 }
             }
@@ -1426,41 +1495,47 @@
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Background gradient
+            // Dynamic background based on time and condition
+            const now = new Date();
+            const isNight = now.getHours() < 6 || now.getHours() > 18;
             let gradient;
             if (weatherCondition.includes('rain')) {
                 gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, '#2F4F4F');
-                gradient.addColorStop(1, '#4682B4');
+                gradient.addColorStop(0, isNight ? '#1C2526' : '#2F4F4F');
+                gradient.addColorStop(1, isNight ? '#2E4345' : '#4682B4');
             } else if (weatherCondition.includes('cloud')) {
                 gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, '#778899');
-                gradient.addColorStop(1, '#B0C4DE');
+                gradient.addColorStop(0, isNight ? '#4B5E6A' : '#778899');
+                gradient.addColorStop(1, isNight ? '#6A8291' : '#B0C4DE');
             } else if (weatherCondition.includes('thunder') || weatherCondition.includes('storm')) {
                 gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, '#191970');
-                gradient.addColorStop(1, '#483D8B');
+                gradient.addColorStop(0, isNight ? '#0F1626' : '#191970');
+                gradient.addColorStop(1, isNight ? '#1E2A44' : '#483D8B');
             } else {
                 gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, '#FFA500');
-                gradient.addColorStop(1, '#FFD700');
+                gradient.addColorStop(0, isNight ? '#2C3E50' : '#FFA500');
+                gradient.addColorStop(1, isNight ? '#34495E' : '#FFD700');
             }
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Storm lightning effect
-            if (weatherCondition.includes('thunder') || weatherCondition.includes('storm')) {
-                if (Math.random() < 0.02) {
-                    ctx.fillStyle = 'rgba(255, 215, 0, 0.7)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    setTimeout(() => {}, 100);
-                }
+            // Lightning effect
+            if ((weatherCondition.includes('thunder') || weatherCondition.includes('storm')) && Math.random() < 0.01) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width,
+                    0,
+                    0,
+                    0,
+                    0,
+                    'lightning'
+                ));
             }
 
-            // Draw and update particles
-            particles.forEach(p => {
+            // Update and draw particles
+            particles.forEach((p, i) => {
                 p.update();
                 p.draw();
+                if (p.type === 'lightning' && p.opacity <= 0) particles.splice(i, 1);
             });
 
             requestAnimationFrame(animate);
@@ -1489,33 +1564,44 @@
         }
 
         function updateUI(currentData, forecastData) {
-            // Update current weather
+            // Current weather
             document.getElementById('location').textContent = currentData.name;
             document.getElementById('temp').textContent = `${Math.round(currentData.main.temp)}°`;
             document.getElementById('condition').textContent = currentData.weather[0].description;
             document.getElementById('highLow').textContent = `H:${Math.round(currentData.main.temp_max)}° L:${Math.round(currentData.main.temp_min)}°`;
+            document.getElementById('feelsLike').textContent = `Feels Like: ${Math.round(currentData.main.feels_like)}°`;
+            document.getElementById('humidity').textContent = `Humidity: ${currentData.main.humidity}%`;
+            document.getElementById('pressure').textContent = `Pressure: ${currentData.main.pressure} mb`;
+            windSpeed = currentData.wind.speed;
+            windDirection = currentData.wind.deg;
+            document.getElementById('windArrow').style.transform = `translate(-50%, -50%) rotate(${windDirection}deg)`;
+            const sunrise = new Date(currentData.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const sunset = new Date(currentData.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('sunTimes').textContent = `Sunrise: ${sunrise} | Sunset: ${sunset}`;
 
-            // Update weather effects
+            // Weather effects
             weatherCondition = currentData.weather[0].main.toLowerCase();
             initParticles(weatherCondition);
 
-            // Update hourly forecast
+            // Hourly forecast with precipitation
             const hourlyForecast = document.getElementById('hourlyForecast');
             hourlyForecast.innerHTML = '';
             for (let i = 0; i < 6; i++) {
                 const hourData = forecastData.list[i];
                 const time = new Date(hourData.dt * 1000).getHours();
+                const precip = hourData.rain ? hourData.rain['3h'] || 0 : 0;
                 const hourDiv = document.createElement('div');
                 hourDiv.classList.add('hour');
                 hourDiv.innerHTML = `
                     <span>${i === 0 ? 'Now' : `${time % 12 || 12} ${time >= 12 ? 'PM' : 'AM'}`}</span>
                     <span>${getWeatherIcon(hourData.weather[0].main)}</span>
                     <span>${Math.round(hourData.main.temp)}°</span>
+                    <span style="font-size: 12px; opacity: 0.8">${Math.round(hourData.pop * 100)}%${precip > 0 ? ` (${precip} in)` : ''}</span>
                 `;
                 hourlyForecast.appendChild(hourDiv);
             }
 
-            // Update daily forecast
+            // Daily forecast
             const dailyForecast = document.getElementById('dailyForecast');
             dailyForecast.innerHTML = '';
             const dailyData = forecastData.list.filter((item, index) => index % 8 === 0).slice(0, 5);
@@ -1544,7 +1630,6 @@
         // Initial fetch
         fetchWeather();
 
-        // Menu button
         document.querySelector('.menu').addEventListener('click', () => {
             alert('Menu functionality not implemented.');
         });
