@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1179,6 +1179,307 @@
         }
 
         window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Weather App Clone</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", sans-serif;
+            background: linear-gradient(180deg, #4A90E2 0%, #87CEFA 100%);
+            height: 100vh;
+            color: white;
+            overflow-x: hidden;
+            position: relative;
+        }
+        .container {
+            padding: 20px;
+            max-width: 375px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .header .location {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header .menu {
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .current-weather {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .current-weather .temp {
+            font-size: 96px;
+            font-weight: 200;
+            line-height: 1;
+        }
+        .current-weather .condition {
+            font-size: 24px;
+            font-weight: 400;
+            margin: 10px 0;
+        }
+        .current-weather .high-low {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .hourly-forecast {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .hourly-forecast .hour {
+            display: inline-block;
+            text-align: center;
+            width: 60px;
+        }
+        .hourly-forecast .hour span {
+            display: block;
+            margin: 5px 0;
+        }
+        .daily-forecast {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        .daily-forecast .day {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .daily-forecast .day:last-child {
+            border-bottom: none;
+        }
+        .daily-forecast .day-name {
+            flex: 1;
+        }
+        .daily-forecast .condition-icon {
+            width: 30px;
+            text-align: center;
+        }
+        .daily-forecast .temps {
+            flex: 1;
+            text-align: right;
+        }
+        .hourly-forecast::-webkit-scrollbar {
+            height: 5px;
+        }
+        .hourly-forecast::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+        }
+        .search-bar {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .search-bar input {
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            width: 70%;
+            font-size: 16px;
+        }
+        .search-bar button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        /* Weather Effects */
+        .rain {
+            background: linear-gradient(180deg, #2F4F4F 0%, #4682B4 100%);
+        }
+        .rain::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.2) 30%, transparent);
+            animation: rainAnimation 1s linear infinite;
+        }
+        @keyframes rainAnimation {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .clouds {
+            background: linear-gradient(180deg, #778899 0%, #B0C4DE 100%);
+        }
+        .clouds::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgNTAiPjxwYXRoIGQ9Ik0wIDUwQzEwIDIwIDIwIDMwIDMwIDIwQzQwIDEwIDUwIDIwIDYwIDEwQzcwIDAgODAgMTAgOTAgMjdDMTAwIDQ0IDEwMCA1MCAxMDAgNTAiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC41KSIvPjwvc3ZnPg==') repeat-x;
+            animation: cloudAnimation 20s linear infinite;
+        }
+        @keyframes cloudAnimation {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .storm {
+            background: linear-gradient(180deg, #191970 0%, #483D8B 100%);
+            animation: stormFlash 5s infinite;
+        }
+        @keyframes stormFlash {
+            0%, 90% { opacity: 1; }
+            91%, 92% { opacity: 0.7; background: #FFD700; }
+            93% { opacity: 1; }
+        }
+        .sunny {
+            background: linear-gradient(180deg, #FFA500 0%, #FFD700 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="cityInput" placeholder="Enter city name">
+            <button onclick="fetchWeather()">Search</button>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="location" id="location">Cupertino</div>
+            <div class="menu">☰</div>
+        </div>
+
+        <!-- Current Weather -->
+        <div class="current-weather">
+            <div class="temp" id="temp">72°</div>
+            <div class="condition" id="condition">Mostly Sunny</div>
+            <div class="high-low" id="highLow">H:78° L:56°</div>
+        </div>
+
+        <!-- Hourly Forecast -->
+        <div class="hourly-forecast" id="hourlyForecast">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Daily Forecast -->
+        <div class="daily-forecast" id="dailyForecast">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <script>
+        const apiKey = 'b52705b1a5d63985c54037005b32e4f9'; // Replace with your OpenWeatherMap API key
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        async function fetchWeather() {
+            const city = document.getElementById('cityInput').value || 'Cupertino';
+            try {
+                // Fetch current weather
+                const currentResponse = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=imperial&appid=${apiKey}`
+                );
+                const currentData = await currentResponse.json();
+                if (currentData.cod !== 200) throw new Error(currentData.message);
+
+                // Fetch forecast (hourly and daily)
+                const forecastResponse = await fetch(
+                    `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=imperial&appid=${apiKey}`
+                );
+                const forecastData = await forecastResponse.json();
+                if (forecastData.cod !== '200') throw new Error(forecastData.message);
+
+                updateUI(currentData, forecastData);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        function updateUI(currentData, forecastData) {
+            // Update current weather
+            document.getElementById('location').textContent = currentData.name;
+            document.getElementById('temp').textContent = `${Math.round(currentData.main.temp)}°`;
+            document.getElementById('condition').textContent = currentData.weather[0].description;
+            document.getElementById('highLow').textContent = `H:${Math.round(currentData.main.temp_max)}° L:${Math.round(currentData.main.temp_min)}°`;
+
+            // Apply weather effects
+            const weatherMain = currentData.weather[0].main.toLowerCase();
+            document.body.className = '';
+            if (weatherMain.includes('rain')) document.body.classList.add('rain');
+            else if (weatherMain.includes('cloud')) document.body.classList.add('clouds');
+            else if (weatherMain.includes('thunder') || weatherMain.includes('storm')) document.body.classList.add('storm');
+            else if (weatherMain.includes('clear') || weatherMain.includes('sun')) document.body.classList.add('sunny');
+
+            // Update hourly forecast (next 6 hours)
+            const hourlyForecast = document.getElementById('hourlyForecast');
+            hourlyForecast.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const hourData = forecastData.list[i];
+                const time = new Date(hourData.dt * 1000).getHours();
+                const hourDiv = document.createElement('div');
+                hourDiv.classList.add('hour');
+                hourDiv.innerHTML = `
+                    <span>${i === 0 ? 'Now' : `${time % 12 || 12} ${time >= 12 ? 'PM' : 'AM'}`}</span>
+                    <span>${getWeatherIcon(hourData.weather[0].main)}</span>
+                    <span>${Math.round(hourData.main.temp)}°</span>
+                `;
+                hourlyForecast.appendChild(hourDiv);
+            }
+
+            // Update daily forecast (next 5 days)
+            const dailyForecast = document.getElementById('dailyForecast');
+            dailyForecast.innerHTML = '';
+            const dailyData = forecastData.list.filter((item, index) => index % 8 === 0).slice(0, 5);
+            dailyData.forEach((dayData, index) => {
+                const date = new Date(dayData.dt * 1000);
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('day');
+                dayDiv.innerHTML = `
+                    <div class="day-name">${index === 0 ? 'Today' : days[date.getDay()]}</div>
+                    <div class="condition-icon">${getWeatherIcon(dayData.weather[0].main)}</div>
+                    <div class="temps">${Math.round(dayData.main.temp_min)}° / ${Math.round(dayData.main.temp_max)}°</div>
+                `;
+                dailyForecast.appendChild(dayDiv);
+            });
+        }
+
+        function getWeatherIcon(condition) {
+            condition = condition.toLowerCase();
+            if (condition.includes('rain')) return '🌧️';
+            if (condition.includes('cloud')) return '☁️';
+            if (condition.includes('thunder') || condition.includes('storm')) return '⛈️';
+            if (condition.includes('clear') || condition.includes('sun')) return '☀️';
+            return '🌫️'; // Default for fog, mist, etc.
+        }
+
+        // Initial fetch
+        fetchWeather();
+
+        // Menu button placeholder
+        document.querySelector('.menu').addEventListener('click', () => {
+            alert('Menu functionality not implemented.');
+        });
     </script>
 </body>
 </html>
