@@ -1357,15 +1357,20 @@
         }
         .weather-map {
             margin-top: 20px;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 15px;
             padding: 15px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
         }
         .weather-map img {
             width: 100%;
             border-radius: 10px;
+            display: block;
+            max-height: 200px;
+            object-fit: cover;
         }
         .map-toggle {
             margin-top: 10px;
@@ -1375,8 +1380,9 @@
             margin: 0 5px;
             border-radius: 10px;
             border: none;
-            background: #fff;
+            background: rgba(255, 255, 255, 0.8);
             cursor: pointer;
+            color: #000;
         }
     </style>
 </head>
@@ -1408,7 +1414,7 @@
         <div class="hourly-forecast" id="hourlyForecast"></div>
         <div class="daily-forecast" id="dailyForecast"></div>
         <div class="weather-map">
-            <img id="mapImage" src="" alt="Weather Map">
+            <img id="mapImage" src="" alt="Weather Map" onerror="this.src='https://via.placeholder.com/300x200?text=Map+Not+Available'">
             <div class="map-toggle">
                 <button onclick="updateMap('precipitation')">Precipitation</button>
                 <button onclick="updateMap('temp')">Temperature</button>
@@ -1670,10 +1676,15 @@
 
         function updateMap(type) {
             const zoom = 6;
-            const tileX = Math.floor((currentLon + 180) / 360 * Math.pow(2, zoom));
+            const tileX = Math.floor(((currentLon + 180) / 360) * Math.pow(2, zoom));
             const tileY = Math.floor((1 - Math.log(Math.tan(currentLat * Math.PI / 180) + 1 / Math.cos(currentLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
             const mapUrl = `https://tile.openweathermap.org/map/${type}_new/${zoom}/${tileX}/${tileY}.png?appid=${apiKey}`;
-            document.getElementById('mapImage').src = mapUrl;
+            const mapImage = document.getElementById('mapImage');
+            mapImage.src = mapUrl;
+            mapImage.onerror = () => {
+                mapImage.src = 'https://via.placeholder.com/300x200?text=Map+Not+Available';
+                console.error('Map tile failed to load, using placeholder.');
+            };
         }
 
         // Initial fetch
